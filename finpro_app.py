@@ -38,7 +38,7 @@ model_columns = [
 st.markdown("""
 <h1 style='text-align:center;'>📊 Employee Turnover Prediction</h1>
 <p style='text-align:center; color:gray;'>
-Modern Machine Learning App for Employee Turnover Analysis
+Modern Machine Learning App for Employee Turnover Analysis powered by XGBoost 
 </p>
 """, unsafe_allow_html=True)
 
@@ -128,4 +128,5 @@ st.markdown("""
 Built with ❤️ using Streamlit & Machine Learning
 </div>
 """, unsafe_allow_html=True)
+
 
