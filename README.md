@@ -1,4 +1,4 @@
-Predicting Employee Analytics : Turnover with Machine Learning
+---------Predicting Employee Analytics : Turnover with Machine Learning------------
 This Project to predict the possibility of employees turning over (resigning) based on historical HR data.
 
 BUSSINESS UNDERSTANDING :
@@ -12,6 +12,7 @@ Oleh karena itu, diperlukan pendekatan berbasis data (data-driven) untuk membant
 Masalah yang dihadapi
 Saat ini, perusahaan belum memiliki sistem yang mampu mengidentifikasi secara dini karyawan yang berpotensi melakukan resign, sehingga menyulitkan manajemen dalam mengambil tindakan preventif yang tepat.
 
+
 Proyek ini bertujuan untuk:
 
 - Mengidentifikasi faktor-faktor utama yang berpengaruh terhadap tingkat employee turnover.
@@ -19,6 +20,29 @@ Proyek ini bertujuan untuk:
 - Mengembangkan model prediksi untuk mengklasifikasikan karyawan yang berpotensi melakukan resign.
 
 - Menyusun rekomendasi kebijakan dan strategi HR berbasis data untuk membantu perusahaan mengurangi tingkat turnover.
+
+
+Metodologi 
+Tahapan yang dilakukan dalam proyek ini:
+- Data Cleaning dan Preprocessing.
+- Exploratory Data Analysis (EDA).
+- Feature Engineering.
+- Training dan evaluasi model machine learning.
+- Hyperparameter tuning.
+- Model interpretability (feature importance).
+
+Pilihan Model Machine Learning yang digunakan :
+- Logistic Regression
+- Random Forest
+- XGBoost
+
+Evaluasi Model
+Model dievaluasi menggunakan beberapa metrik:
+- Accuracy
+- Precision
+- Recall
+- F1-Score
+- ROC-AUC
 
 Kesimpulan :
 
@@ -87,6 +111,8 @@ Rekomendasi Strategi HR Berdasarkan Hasil Analisis
 - Berikan insentif berbasis kinerja dan tunjangan yang kompetitif.
 
 Modern Machine Learning App for Employee Turnover Analysis powered by XGBoost :
+
+
 https://turnover-prediction-app.streamlit.app
 
 
