@@ -1,4 +1,4 @@
-# Predicting Employee Analytics: Turnover with Machine Learning
+# Predicting Employee Analytics : Turnover with Machine Learning
 
 Proyek ini bertujuan untuk memprediksi kemungkinan karyawan melakukan resign (turnover) berdasarkan data historis SDM menggunakan pendekatan data science dan machine learning.
 
