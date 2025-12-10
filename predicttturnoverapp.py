@@ -1,136 +1,167 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
-import pickle
 import joblib
-import shap
 import plotly.graph_objects as go
-from fpdf import FPDF
-import matplotlib.pyplot as plt
+from PIL import Image
 
-# ======================== LOAD FILES ========================
+# ----------------- LOAD MODEL SAFE PATH -----------------
+model_path = "./model.pkl"
+model = joblib.load(model_path)
 
-def load_file(filename):
-    try:
-        return joblib.load(filename)
-    except:
-        with open(filename, "rb") as f:
-            return pickle.load(f)
-
-model = load_file("xgb_attrition_model.pkl")
-scaler = load_file("scaler.pkl")
-encoder = load_file("encoder.pkl")
-
-# ======================== PAGE CONFIG ========================
+# ----------------- PAGE CONFIG -----------------
 st.set_page_config(
     page_title="Employee Turnover Prediction",
-    page_icon="📉",
+    page_icon="📊",
     layout="wide"
 )
 
-# ======================== FIXED MODEL COLUMNS ========================
-model_columns = [
-    "satisfaction_level",
-    "last_evaluation",
-    "number_project",
-    "average_montly_hours",
-    "time_spend_company",
-    "salary",
-    "Work_accident",
-    "promotion_last_5years"
-]
+# ----------------- DARK MODE TOGGLE -----------------
+if "dark_mode" not in st.session_state:
+    st.session_state.dark_mode = True
 
-# ======================== UI ========================
-st.title("📉 Employee Turnover Prediction Dashboard")
-
-col1, col2 = st.columns(2)
-with col1:
-    satisfaction_level = st.slider("Satisfaction Level", 0.0, 1.0, 0.5)
-    last_evaluation = st.slider("Last Evaluation", 0.0, 1.0, 0.5)
-    number_project = st.number_input("Number of Projects", 1, 10, 3)
-    average_montly_hours = st.number_input("Average Monthly Hours", 50, 350, 160)
-
-with col2:
-    time_spend_company = st.number_input("Years at Company", 1, 20, 3)
-    work_accident = st.selectbox("Work Accident?", ["No", "Yes"])
-    promotion_last_5years = st.selectbox("Promotion in Last 5 Years?", ["No", "Yes"])
-    salary = st.selectbox("Salary Level", ["low", "medium", "high"])
-
-work_accident = 1 if work_accident == "Yes" else 0
-promotion_last_5years = 1 if promotion_last_5years == "Yes" else 0
-salary_encoded = encoder.transform([salary])[0]
-
-# ======================== BUILD INPUT ========================
-input_data = pd.DataFrame([[
-    satisfaction_level,
-    last_evaluation,
-    number_project,
-    average_montly_hours,
-    time_spend_company,
-    salary_encoded,
-    work_accident,
-    promotion_last_5years
-]], columns=model_columns)
-
-scaled_input = scaler.transform(input_data)
-
-# ======================== PREDICT ========================
-predict_btn = st.button("🔮 Predict Turnover")
-
-if predict_btn:
-    prediction = model.predict(scaled_input)[0]
-    probability = model.predict_proba(scaled_input)[0][1]
-
-    st.subheader("🔍 Prediction Result")
-
-    if prediction == 1:
-        st.error(f"⚠️ High Risk — Employee likely to **LEAVE**\nProbability: **{probability:.2f}**")
-        risk_label = "High Risk of Attrition"
+col_dark, _ = st.columns([1, 8])
+with col_dark:
+    if st.toggle("🌙 Dark Mode", value=st.session_state.dark_mode):
+        st.session_state.dark_mode = True
     else:
-        st.success(f"✅ Low Risk — Employee likely to **STAY**\nProbability: **{probability:.2f}**")
-        risk_label = "Low Risk of Attrition"
+        st.session_state.dark_mode = False
 
-    # ======================== RADAR CHART ========================
-    st.subheader("🕸 Risk Radar Chart")
+# Apply CSS Theme
+if st.session_state.dark_mode:
+    st.markdown("""
+        <style>
+        body, .stApp {
+            background-color: #0d1117 !important;
+            color: #ffffff !important;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+else:
+    st.markdown("""
+        <style>
+        body, .stApp {
+            background-color: #ffffff !important;
+            color: #000000 !important;
+        }
+        </style>
+    """, unsafe_allow_html=True)
 
-    radar_features = ["Satisfaction", "Evaluation", "Projects", "Monthly Hours", "Tenure"]
-    radar_values = [
-        satisfaction_level,
-        last_evaluation,
-        number_project / 10,
-        average_montly_hours / 350,
-        time_spend_company / 20
-    ]
 
-    fig_radar = go.Figure()
-    fig_radar.add_trace(go.Scatterpolar(
-        r=radar_values,
-        theta=radar_features,
-        fill="toself"
-    ))
+# ----------------- TITLE -----------------
+st.markdown("<h1 style='text-align:center;'>🔎 Employee Turnover Prediction Dashboard</h1>",
+            unsafe_allow_html=True)
 
-    st.plotly_chart(fig_radar, use_container_width=True)
+st.write("Isi data berikut untuk memprediksi apakah karyawan akan resign atau tidak.")
 
-    # ======================== FEATURE IMPORTANCE ========================
-    st.subheader("📊 Feature Importance")
+# ----------------- INPUT FORM -----------------
+with st.container():
+    col1, col2, col3 = st.columns(3)
 
-    try:
-        importances = model.feature_importances_
-        fig_imp = go.Figure([go.Bar(x=model_columns, y=importances)])
-        st.plotly_chart(fig_imp, use_container_width=True)
-    except:
-        st.info("Feature importance unavailable.")
+    with col1:
+        satisfaction_level = st.slider("Satisfaction Level", 0.0, 1.0, 0.3)
+        number_project = st.slider("Number of Projects", 1, 10, 3)
+        work_accident = st.selectbox("Work Accident", [0, 1])
 
-    # ======================== SHAP (FIXED) ========================
-    st.subheader("🔥 SHAP Explainability")
+    with col2:
+        last_evaluation = st.slider("Last Evaluation Score", 0.0, 1.0, 0.7)
+        average_montly_hours = st.number_input("Average Monthly Hours", 50, 350, 160)
+        promotion_last_5years = st.selectbox("Promotion in Last 5 Years", [0, 1])
 
-    explainer = shap.TreeExplainer(model)
-    shap_values = explainer(scaled_input)
+    with col3:
+        time_spend_company = st.slider("Years at Company", 1, 15, 3)
+        salary = st.selectbox("Salary Level", ["low", "medium", "high"])
 
-    sample_sv = shap_values[0]
+salary_map = {"low": 0, "medium": 1, "high": 2}
 
-    fig, ax = plt.subplots(figsize=(8, 6))
-    shap.plots.waterfall(sample_sv, show=False)
-    st.pyplot(fig)
+# ----------------- PREDICTION -----------------
 
+st.markdown("<hr>", unsafe_allow_html=True)
+st.subheader("📊 Prediction Result")
+
+if st.button("Predict Turnover"):
     
+    # Show header image
+    image = Image.open("/mnt/data/turnover-adalah.jpg")
+    st.image(image, caption="Employee Turnover Illustration", use_column_width=True)
+
+    input_data = pd.DataFrame({
+        "satisfaction_level": [satisfaction_level],
+        "last_evaluation": [last_evaluation],
+        "number_project": [number_project],
+        "average_montly_hours": [average_montly_hours],
+        "time_spend_company": [time_spend_company],
+        "Work_accident": [work_accident],
+        "promotion_last_5years": [promotion_last_5years],
+        "salary": [salary_map[salary]]
+    })
+
+    prediction = model.predict(input_data)[0]
+    pred_proba = model.predict_proba(input_data)[0][1]
+
+    # ----------------- CARD STYLE -----------------
+    st.markdown("""
+        <style>
+            .result-card {
+                padding: 25px;
+                border-radius: 20px;
+                background-color: #161b22;
+                color: white;
+                box-shadow: 0px 0px 20px rgba(0,0,0,0.45);
+                text-align: center;
+                transition: 0.3s ease;
+            }
+            .result-card:hover {
+                transform: scale(1.02);
+            }
+        </style>
+    """, unsafe_allow_html=True)
+
+    label = "❌ High Risk — Employee Likely to Leave" if prediction == 1 else "✅ Low Risk — Employee Likely to Stay"
+    color = "red" if prediction == 1 else "lightgreen"
+
+    st.markdown(
+        f'<div class="result-card"><h2 style="color:{color};">{label}</h2></div>',
+        unsafe_allow_html=True
+    )
+
+    # ----------------- TWO COLUMN VISUAL -----------------
+    left, right = st.columns([1.3, 1])
+
+    with left:
+        # GAUGE METER
+        gauge = go.Figure(go.Indicator(
+            mode="gauge+number",
+            value=round(pred_proba * 100, 2),
+            title={'text': "Turnover Probability (%)"},
+            gauge={
+                'axis': {'range': [0, 100]},
+                'bar': {'color': "red" if pred_proba > 0.5 else "green"},
+                'steps': [
+                    {'range': [0, 50], 'color': "#2ecc71"},
+                    {'range': [50, 100], 'color': "#e74c3c"}
+                ],
+            }
+        ))
+
+        st.plotly_chart(gauge, use_container_width=True)
+
+    with right:
+        # Insight Box
+        if prediction == 1:
+            st.error("""
+            ### ⚠️ Risk Analysis  
+            - Probabilitas resign **tinggi**  
+            - Perhatikan **workload, satisfaction, dan kompensasi**
+            - Rekomendasi: lakukan **engagement check** & **performance feedback**
+            """)
+        else:
+            st.success("""
+            ### 🟢 Stability Insight  
+            - Karyawan cenderung **bertahan**
+            - Tidak ditemukan indikator risiko signifikan  
+            - Pertahankan iklim kerja & kompensasi saat ini  
+            """)
+
+    # ----------------- EXTRA DETAILS BOX -----------------
+    st.info(f"**Turnover Probability Score: {pred_proba:.2f}**")
+
