@@ -15,21 +15,6 @@ st.set_page_config(
     layout="wide"
 )
 
-# ======================== DARK MODE TOGGLE ========================
-dark_mode = st.sidebar.toggle("🌙 Dark Mode", value=False)
-
-if dark_mode:
-    st.markdown("""
-        <style>
-        body, .stApp {
-            background-color: #0e1117;
-            color: #FAFAFA;
-        }
-        .stSelectbox, .stSlider, .stNumberInput {
-            color: #FAFAFA !important;
-        }
-        </style>
-    """, unsafe_allow_html=True)
 
 # ======================== LOAD FILES ========================
 def load_file(filename):
@@ -174,3 +159,4 @@ if predict_btn:
     fig, ax = plt.subplots(figsize=(8, 6))
     shap.plots.waterfall(sample_sv, show=False)
     st.pyplot(fig)
+
