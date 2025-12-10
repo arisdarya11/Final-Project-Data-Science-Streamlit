@@ -4,27 +4,40 @@ import numpy as np
 import pickle
 import joblib
 import shap
-import matplotlib.pyplot as plt
-from fpdf import FPDF
-import plotly.express as px
 import plotly.graph_objects as go
+from fpdf import FPDF
 
-# ===========================
-# LOAD MODEL & PREPROCESSOR
-# ===========================
+# ======================== LOAD FILES ========================
+
 def load_file(filename):
     try:
         return joblib.load(filename)
     except:
-        return pickle.load(open(filename, "rb"))
+        with open(filename, "rb") as f:
+            return pickle.load(f)
 
 model = load_file("xgb_attrition_model.pkl")
 scaler = load_file("scaler.pkl")
 encoder = load_file("encoder.pkl")
 
-# ===========================
-# FIXED COLUMN ORDER (PENTING)
-# ===========================
+# ======================== PAGE CONFIG ========================
+st.set_page_config(
+    page_title="Employee Turnover Prediction",
+    page_icon="📉",
+    layout="wide"
+)
+
+# ======================== DARK MODE ========================
+dark_mode = st.sidebar.checkbox("🌙 Dark Mode", value=False)
+
+if dark_mode:
+    st.markdown("""
+        <style>
+        body { background-color: #0e1117; color: #FAFAFA; }
+        </style>
+    """, unsafe_allow_html=True)
+
+# ======================== FIXED MODEL COLUMNS ========================
 model_columns = [
     "satisfaction_level",
     "last_evaluation",
@@ -36,54 +49,27 @@ model_columns = [
     "promotion_last_5years"
 ]
 
-# ===========================
-# THEME SWITCH
-# ===========================
-dark_mode = st.toggle("🌙 Dark Mode")
-
-if dark_mode:
-    st.markdown("""
-    <style>
-        body { background-color: #0E1117; color: white; }
-    </style>
-    """, unsafe_allow_html=True)
-
-# ===========================
-# APP HEADER
-# ===========================
-st.title("🧠 Employee Attrition Prediction Dashboard")
-st.caption("Modern ML-powered analytics with SHAP Explainability")
-
-st.markdown("---")
-
-# ===========================
-# INPUT FORM
-# ===========================
-st.subheader("📥 Employee Data Input")
+# ======================== UI ========================
+st.title("📉 Employee Turnover Prediction Dashboard")
 
 col1, col2 = st.columns(2)
-
 with col1:
     satisfaction_level = st.slider("Satisfaction Level", 0.0, 1.0, 0.5)
-    last_evaluation = st.slider("Last Evaluation Score", 0.0, 1.0, 0.5)
+    last_evaluation = st.slider("Last Evaluation", 0.0, 1.0, 0.5)
     number_project = st.number_input("Number of Projects", 1, 10, 3)
-    salary_text = st.selectbox("Salary Level", ["low", "medium", "high"])
+    average_montly_hours = st.number_input("Average Monthly Hours", 50, 350, 160)
 
 with col2:
-    average_montly_hours = st.number_input("Average Monthly Hours", 50, 350, 160)
     time_spend_company = st.number_input("Years at Company", 1, 20, 3)
-    work_accident = st.selectbox("Work Accident", ["No", "Yes"])
-    promotion_last_5years = st.selectbox("Promoted in Last 5 Years", ["No", "Yes"])
+    work_accident = st.selectbox("Work Accident?", ["No", "Yes"])
+    promotion_last_5years = st.selectbox("Promotion in Last 5 Years?", ["No", "Yes"])
+    salary = st.selectbox("Salary Level", ["low", "medium", "high"])
 
-# Convert YES/NO to numeric
 work_accident = 1 if work_accident == "Yes" else 0
 promotion_last_5years = 1 if promotion_last_5years == "Yes" else 0
+salary_encoded = encoder.transform([salary])[0]
 
-salary_encoded = encoder.transform([salary_text])[0]
-
-# ===========================
-# BUILD DATAFRAME
-# ===========================
+# ======================== BUILD INPUT ========================
 input_data = pd.DataFrame([[
     satisfaction_level,
     last_evaluation,
@@ -97,34 +83,26 @@ input_data = pd.DataFrame([[
 
 scaled_input = scaler.transform(input_data)
 
-# ===========================
-# PREDICT BUTTON
-# ===========================
-if st.button("🚀 Predict Employee Turnover", use_container_width=True):
+# ======================== PREDICT ========================
+predict_btn = st.button("🔮 Predict Turnover")
 
+if predict_btn:
     prediction = model.predict(scaled_input)[0]
-    probability = float(model.predict_proba(scaled_input)[0][1])
+    probability = model.predict_proba(scaled_input)[0][1]
 
-    st.markdown("## 🔍 Prediction Result")
+    st.subheader("🔍 Prediction Result")
 
     if prediction == 1:
-        st.error(f"**⚠️ Employee Likely to Leave**\n### Probability: **{probability:.2f}**")
+        st.error(f"⚠️ High Risk — Employee likely to **LEAVE**\nProbability: **{probability:.2f}**")
+        risk_label = "High Risk of Attrition"
     else:
-        st.success(f"**✅ Employee Likely to Stay**\n### Probability: **{probability:.2f}**")
+        st.success(f"✅ Low Risk — Employee likely to **STAY**\nProbability: **{probability:.2f}**")
+        risk_label = "Low Risk of Attrition"
 
-    # ===========================
-    # RISK RADAR CHART
-    # ===========================
-    st.subheader("📊 Risk Radar Overview")
+    # ======================== RADAR CHART ========================
+    st.subheader("🕸 Risk Radar Chart")
 
-    radar_labels = [
-        "Satisfaction",
-        "Evaluation",
-        "Projects",
-        "Monthly Hours",
-        "Tenure"
-    ]
-
+    radar_features = ["Satisfaction", "Evaluation", "Projects", "Monthly Hours", "Tenure"]
     radar_values = [
         satisfaction_level,
         last_evaluation,
@@ -134,69 +112,53 @@ if st.button("🚀 Predict Employee Turnover", use_container_width=True):
     ]
 
     fig_radar = go.Figure()
-
     fig_radar.add_trace(go.Scatterpolar(
-        r=radar_values + [radar_values[0]],
-        theta=radar_labels + [radar_labels[0]],
-        fill='toself'
+        r=radar_values,
+        theta=radar_features,
+        fill="toself"
     ))
-
-    fig_radar.update_layout(
-        polar=dict(radialaxis=dict(visible=True)),
-        showlegend=False,
-        height=450
-    )
 
     st.plotly_chart(fig_radar, use_container_width=True)
 
-    # ===========================
-    # FEATURE IMPORTANCE (BAR)
-    # ===========================
-    st.subheader("📊 Global Feature Importance")
+    # ======================== FEATURE IMPORTANCE ========================
+    st.subheader("📊 Feature Importance")
 
     try:
-        importance = model.feature_importances_
-        df_imp = pd.DataFrame({
-            "Feature": model_columns,
-            "Importance": importance
-        }).sort_values("Importance", ascending=False)
-
-        fig_imp = px.bar(df_imp, x="Importance", y="Feature", orientation="h")
-        st.plotly_chart(fig_imp)
+        importances = model.feature_importances_
+        fig_imp = go.Figure([go.Bar(x=model_columns, y=importances)])
+        st.plotly_chart(fig_imp, use_container_width=True)
     except:
         st.info("Feature importance unavailable.")
 
-    # ===========================
-    # SHAP EXPLAINABILITY
-    # ===========================
-    st.subheader("🔥 SHAP Explainability Dashboard")
+    # ======================== SHAP ========================
+    st.subheader("🔥 SHAP Explainability")
 
-    shap.initjs()
     explainer = shap.TreeExplainer(model)
     shap_values = explainer.shap_values(scaled_input)
 
-    st.write("### Local SHAP Force Plot")
-    fig_shap = shap.force_plot(explainer.expected_value, shap_values, input_data, matplotlib=True)
+    # Generate waterfall plot (matplotlib figure)
+    fig_shap = shap.plots._waterfall.waterfall_figure(
+        explainer.expected_value,
+        shap_values[0],
+        feature_names=model_columns
+    )
+
     st.pyplot(fig_shap)
 
-    # ===========================
-    # EXPORT PDF
-    # ===========================
-    st.subheader("📥 Download Prediction Report (PDF)")
+    # ======================== PDF DOWNLOAD ========================
+    st.subheader("📥 Download PDF Report")
 
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.set_font("Arial", size=12)
+    if st.button("Download PDF"):
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_font("Arial", size=12)
+        pdf.cell(200, 10, txt="Employee Attrition Prediction", ln=True)
+        pdf.ln(5)
+        pdf.cell(200, 10, txt=f"Prediction: {risk_label}", ln=True)
+        pdf.cell(200, 10, txt=f"Probability: {probability:.2f}", ln=True)
 
-    pdf.cell(200, 10, txt="Employee Attrition Prediction Report", ln=1)
-    pdf.cell(200, 10, txt=f"Prediction: {'Leave' if prediction==1 else 'Stay'}", ln=1)
-    pdf.cell(200, 10, txt=f"Probability: {probability:.2f}", ln=1)
+        pdf_file = "prediction_report.pdf"
+        pdf.output(pdf_file)
 
-    file_path = "prediction_report.pdf"
-    pdf.output(file_path)
-
-    with open(file_path, "rb") as f:
-        st.download_button("⬇ Download PDF Report", f, file_name=file_path)
-
-st.markdown("---")
-st.caption("Built with ❤️ using Streamlit & Machine Learning")
+        with open(pdf_file, "rb") as f:
+            st.download_button("Download Report", f, file_name=pdf_file)
